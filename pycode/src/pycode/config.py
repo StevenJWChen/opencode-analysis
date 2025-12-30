@@ -246,8 +246,8 @@ class ConfigManager:
                 doom_loop_detection=True,
             ),
             default_model=ModelConfig(
-                provider="anthropic",
-                model_id="claude-3-5-sonnet-20241022",
+                provider="ollama",
+                model_id="llama3.2:latest",
                 temperature=0.7,
                 max_tokens=4096,
             ),
@@ -255,8 +255,8 @@ class ConfigManager:
                 "build": AgentConfigSettings(
                     name="build",
                     model=ModelConfig(
-                        provider="anthropic",
-                        model_id="claude-3-5-sonnet-20241022",
+                        provider="ollama",
+                        model_id="llama3.2:latest",
                     ),
                     enabled_tools=[
                         "write", "read", "edit", "bash", "grep", "glob",
@@ -269,8 +269,8 @@ class ConfigManager:
                 "plan": AgentConfigSettings(
                     name="plan",
                     model=ModelConfig(
-                        provider="anthropic",
-                        model_id="claude-3-5-sonnet-20241022",
+                        provider="ollama",
+                        model_id="llama3.2:latest",
                     ),
                     enabled_tools=["read", "grep", "glob", "ls", "codesearch"],
                     edit_permission="deny",
@@ -279,6 +279,11 @@ class ConfigManager:
                 ),
             },
             providers={
+                "ollama": ProviderSettings(
+                    api_key=None,  # Not needed for local Ollama
+                    base_url="http://localhost:11434",
+                    timeout=120,
+                ),
                 "anthropic": ProviderSettings(
                     api_key=None,  # Load from env
                     base_url=None,

@@ -1,0 +1,198 @@
+# PyCode Configuration Example
+#
+# Copy this file to one of these locations:
+#   - ~/.pycode/config.yaml (global config)
+#   - ./pycode.yaml (project-specific)
+#   - ./.pycode.yaml (project-specific, hidden)
+#
+# Environment variables can be referenced using ${VAR_NAME} or ${VAR_NAME:default}
+
+# ============================================================================
+# Runtime Settings
+# ============================================================================
+runtime:
+  verbose: true
+  log_level: normal  # Options: quiet, normal, verbose, debug
+  log_file: null  # Optional: path to log file
+  auto_approve_tools: false  # Set to true to skip tool approval prompts
+  max_iterations: 10
+  doom_loop_threshold: 3
+  doom_loop_detection: true
+  context_window_tokens: 100000
+  max_conversation_messages: 20
+
+# ============================================================================
+# Default Model Configuration
+# ============================================================================
+default_model:
+  provider: ollama  # Options: ollama, anthropic, openai, gemini, mistral, cohere
+  model_id: llama3.2:latest  # For ollama, use models like: llama3.2:latest, mistral, codellama
+  temperature: 0.7
+  max_tokens: 4096
+
+# ============================================================================
+# Provider Settings
+# ============================================================================
+providers:
+  # Anthropic (Claude)
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}  # Or set directly: sk-ant-...
+    base_url: null  # Default: https://api.anthropic.com
+    timeout: 60
+
+  # Ollama (Local models)
+  ollama:
+    api_key: null  # Not needed for local Ollama
+    base_url: http://localhost:11434
+    timeout: 120  # Longer timeout for local inference
+
+  # OpenAI (GPT models)
+  openai:
+    api_key: ${OPENAI_API_KEY}  # Or set directly: sk-...
+    base_url: null  # Default: https://api.openai.com/v1
+    timeout: 60
+
+  # Google Gemini
+  gemini:
+    api_key: ${GEMINI_API_KEY}  # Or ${GOOGLE_API_KEY}
+    base_url: null  # Default: https://generativelanguage.googleapis.com
+    timeout: 60
+
+  # Mistral AI
+  mistral:
+    api_key: ${MISTRAL_API_KEY}
+    base_url: null  # Default: https://api.mistral.ai
+    timeout: 60
+
+  # Cohere
+  cohere:
+    api_key: ${COHERE_API_KEY}
+    base_url: null  # Default: https://api.cohere.ai
+    timeout: 60
+
+# ============================================================================
+# Agent Configurations
+# ============================================================================
+agents:
+  # Build agent - full development access
+  build:
+    name: build
+    model:
+      provider: anthropic  # Change to 'ollama' for local inference
+      model_id: claude-3-5-sonnet-20241022  # Or 'llama3.2:latest' for Ollama
+      temperature: 0.7
+      max_tokens: 4096
+    enabled_tools:
+      - write
+      - read
+      - edit
+      - bash
+      - grep
+      - glob
+      - multiedit
+      - git
+      - webfetch
+      - snapshot
+      - patch
+    edit_permission: allow
+    bash_permissions:
+      "*": allow
+    max_iterations: 10
+
+  # Plan agent - read-only, for planning tasks
+  plan:
+    name: plan
+    model:
+      provider: anthropic
+      model_id: claude-3-5-sonnet-20241022
+      temperature: 0.7
+      max_tokens: 4096
+    enabled_tools:
+      - read
+      - grep
+      - glob
+      - ls
+      - codesearch
+    edit_permission: deny
+    bash_permissions:
+      "*": deny
+    max_iterations: 5
+
+# ============================================================================
+# Storage Settings
+# ============================================================================
+storage_path: ~/.pycode/storage
+
+# ============================================================================
+# Enabled Tools
+# ============================================================================
+enabled_tools:
+  - write
+  - read
+  - edit
+  - bash
+  - grep
+  - glob
+  - ls
+  - multiedit
+  - git
+  - webfetch
+  - snapshot
+  - patch
+  - ask
+  - todo
+  - codesearch
+
+# ============================================================================
+# Example Configurations for Different Use Cases
+# ============================================================================
+
+# ── Example 1: Use Ollama for all agents (local, private, free) ────────────
+#
+# default_model:
+#   provider: ollama
+#   model_id: llama3.2:latest
+#   temperature: 0.7
+#   max_tokens: 4096
+#
+# agents:
+#   build:
+#     model:
+#       provider: ollama
+#       model_id: llama3.2:latest
+#
+# ── Example 2: Use OpenAI GPT-4 ────────────────────────────────────────────
+#
+# default_model:
+#   provider: openai
+#   model_id: gpt-4-turbo-preview
+#   temperature: 0.7
+#   max_tokens: 4096
+#
+# providers:
+#   openai:
+#     api_key: ${OPENAI_API_KEY}
+#
+# ── Example 3: Mix providers (Ollama for build, Claude for plan) ───────────
+#
+# agents:
+#   build:
+#     model:
+#       provider: ollama
+#       model_id: codellama:latest  # Good for code generation
+#   plan:
+#     model:
+#       provider: anthropic
+#       model_id: claude-3-5-sonnet-20241022  # Good for planning
+#
+# ── Example 4: Use Gemini ──────────────────────────────────────────────────
+#
+# default_model:
+#   provider: gemini
+#   model_id: gemini-pro
+#   temperature: 0.7
+#   max_tokens: 4096
+#
+# providers:
+#   gemini:
+#     api_key: ${GEMINI_API_KEY}

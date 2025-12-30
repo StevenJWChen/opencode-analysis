@@ -16,6 +16,15 @@ import sys
 import os
 from pathlib import Path
 
+# Fix Windows console encoding issues
+if sys.platform == 'win32':
+    try:
+        os.system('chcp 65001 > nul 2>&1')
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except:
+        pass
+
 # Add src to path
 sys.path.insert(0, 'src')
 
@@ -35,7 +44,8 @@ from pycode.tools import (
     GlobTool,
 )
 from pycode.runner import AgentRunner, RunConfig
-from pycode.providers import AnthropicProvider, ProviderConfig
+from pycode.providers import OllamaProvider, ProviderConfig
+from pycode.config import ProviderSettings
 
 
 def print_banner():
