@@ -143,6 +143,8 @@ class AgentRunner:
 
         # Create tool part
         tool_part = ToolPart(
+            session_id=self.session.id,
+            message_id=self.current_message.id if self.current_message else "unknown",
             tool=tool_name,
             call_id=tool_call_id,
             state=ToolState(
@@ -217,7 +219,11 @@ class AgentRunner:
             session_id=self.session.id,
             role="user",
         )
-        user_message.add_part(TextPart(text=user_input))
+        user_message.add_part(TextPart(
+            session_id=self.session.id,
+            message_id=user_message.id,
+            text=user_input
+        ))
 
         # Save user message to history
         await self.history.save_message(self.session.id, user_message)
@@ -287,7 +293,11 @@ class AgentRunner:
 
             # Add text part if we got any text
             if accumulated_text:
-                self.current_message.add_part(TextPart(text=accumulated_text))
+                self.current_message.add_part(TextPart(
+                    session_id=self.session.id,
+                    message_id=self.current_message.id,
+                    text=accumulated_text
+                ))
 
             # Execute tool calls if any
             if tool_calls:

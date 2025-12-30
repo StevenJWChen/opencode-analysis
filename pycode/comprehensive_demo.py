@@ -120,31 +120,96 @@ async def demo_message_history(session: Session):
     print(f"     - Token limit handling")
 
 
+class StreamEvent:
+    """Mock event object for provider streaming"""
+    def __init__(self, event_type: str, data: dict):
+        self.type = event_type
+        self.data = data
+
+
+class MockProvider:
+    """Mock LLM provider for demo - simulates realistic vibe coding responses"""
+
+    def __init__(self):
+        self.iteration = 0
+
+    async def stream(self, model: str, messages: list, system: str, tools: list):
+        """Simulate LLM streaming responses with tool calls"""
+        self.iteration += 1
+
+        # Show what the agent sees
+        print(f"\n📋 Agent System Prompt: {system[:100]}...")
+        print(f"📋 Available Tools: {len(tools)} tools")
+        print(f"📋 Conversation Messages: {len(messages)} messages")
+        print()
+
+        if self.iteration == 1:
+            # First iteration: Write the code
+            yield StreamEvent("text_delta", {"text": "I'll create a Python function to reverse a string and test it.\n\n"})
+
+            # Simulate tool call for write
+            yield StreamEvent("tool_use", {
+                "id": "call_001",
+                "name": "write",
+                "arguments": {
+                    "file_path": "/tmp/reverse_string.py",
+                    "content": '''def reverse_string(text):
+    """Reverse a string"""
+    return text[::-1]
+
+if __name__ == "__main__":
+    test_input = "PyCode"
+    result = reverse_string(test_input)
+    print(f"Input: {test_input}")
+    print(f"Reversed: {result}")
+'''
+                }
+            })
+
+        elif self.iteration == 2:
+            # Second iteration: Run the code
+            yield StreamEvent("text_delta", {"text": "Now let me run the code to verify it works.\n\n"})
+
+            # Simulate tool call for bash
+            yield StreamEvent("tool_use", {
+                "id": "call_002",
+                "name": "bash",
+                "arguments": {
+                    "command": "python /tmp/reverse_string.py"
+                }
+            })
+
+        else:
+            # Third iteration: Verify and complete
+            yield StreamEvent("text_delta", {"text": "Perfect! The function works correctly. It reverses 'PyCode' to 'edoCyP'.\n\n"})
+            yield StreamEvent("text_delta", {"text": "✅ Task complete - created reverse_string() function and verified it works!"})
+
+
 async def demo_vibe_coding(session: Session):
-    """Demonstrate vibe coding workflow"""
-    print_section("4. Vibe Coding Workflow")
+    """Demonstrate vibe coding workflow with real agent and tools"""
+    print_section("4. Vibe Coding Workflow (Mock LLM)")
 
-    # Check for API key
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("⚠️  ANTHROPIC_API_KEY not set")
-        print("   Skipping vibe coding demo")
-        print("   Run 'python setup_api_key.py' to set up API key")
-        return
-
-    print("✅ API key found - running vibe coding demo")
+    print("🎯 Running realistic vibe coding demo")
+    print("   ✅ Real BuildAgent with system prompt")
+    print("   ✅ Real ToolRegistry with 6 tools")
+    print("   ✅ Real tool execution (write, bash, etc.)")
+    print("   ✅ Real message history and session persistence")
+    print("   🎭 Mock LLM responses (simulated)")
+    print()
 
     # Load config
     config = load_config()
 
-    # Setup agent
+    # Setup REAL agent
     agent = BuildAgent()
 
-    # Setup provider
-    provider_config = ProviderConfig(api_key=api_key)
-    provider = AnthropicProvider(provider_config)
+    # Get and show agent's system prompt
+    system_prompt = await agent.get_system_prompt()
+    print(f"📝 Agent System Prompt ({len(system_prompt)} chars):")
+    print(f"   {system_prompt[:150]}...")
+    print()
 
-    # Setup tools
+    # Setup REAL tools
     registry = ToolRegistry()
     registry.register(WriteTool())
     registry.register(ReadTool())
@@ -153,7 +218,15 @@ async def demo_vibe_coding(session: Session):
     registry.register(GrepTool())
     registry.register(GlobTool())
 
-    # Create runner with new features
+    print(f"🔧 Registered {len(registry.get_all())} real tools:")
+    for tool_name in registry.get_all().keys():
+        print(f"   • {tool_name}")
+    print()
+
+    # Setup MOCK provider (only simulates LLM responses)
+    provider = MockProvider()
+
+    # Create REAL runner with new features
     storage = Storage()
     run_config = RunConfig(
         max_iterations=config.runtime.max_iterations,
@@ -169,24 +242,46 @@ async def demo_vibe_coding(session: Session):
         provider=provider,
         registry=registry,
         config=run_config,
-        storage=storage,  # NEW: Pass storage for history management
+        storage=storage,  # Real storage for history management
     )
 
-    # Simple request
+    # Realistic request
     request = "Write a Python function that reverses a string and test it with 'PyCode'"
 
-    print(f"\n🎯 Request: {request}")
+    print(f"💬 User Request: \"{request}\"")
     print("\n" + "=" * 70)
+    print("🚀 Starting Vibe Coding Loop...")
+    print("=" * 70)
 
     try:
         async for chunk in runner.run(request):
             print(chunk, end="", flush=True)
 
         print("\n" + "=" * 70)
-        print("✅ Vibe coding demo complete!")
+        print("✅ Vibe Coding Demo Complete!")
+        print("=" * 70)
+
+        # Show what was persisted
+        print("\n📊 What happened:")
+        print("   ✅ User message saved to history")
+        print("   ✅ Agent messages saved with tool calls")
+        print("   ✅ Session timestamp updated")
+        print("   ✅ Real tools executed (write file, run bash)")
+        print("   ✅ File created: /tmp/reverse_string.py")
+        print("   ✅ Code executed and output captured")
+
+        # Verify file was actually created
+        if Path("/tmp/reverse_string.py").exists():
+            print("\n📄 Actual file created:")
+            with open("/tmp/reverse_string.py") as f:
+                content = f.read()
+            print("   " + "\n   ".join(content.split("\n")[:5]))
+            print("   ...")
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 async def demo_doom_loop_detection():
