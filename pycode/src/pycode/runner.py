@@ -23,6 +23,7 @@ from .history import MessageHistory
 from .session_manager import SessionManager
 from .storage import Storage
 from .tool_approval import ToolApprovalManager
+from .ui import get_ui, TerminalUI
 
 
 @dataclass
@@ -62,6 +63,9 @@ class AgentRunner:
 
         # Tool approval management
         self.approval_manager = ToolApprovalManager()
+
+        # Terminal UI
+        self.ui = get_ui(verbose=self.config.verbose)
 
         self.current_message: Message | None = None
         self.iteration_count = 0
@@ -169,9 +173,8 @@ class AgentRunner:
             # Update status
             tool_part.state.status = "running"
 
-            if self.config.verbose:
-                print(f"\n🔧 Running tool: {tool_name}")
-                print(f"   Arguments: {json.dumps(tool_args, indent=2)}")
+            # Show tool execution start
+            self.ui.print_tool_execution(tool_name, tool_args)
 
             # Execute tool
             result = await self.registry.execute(tool_name, tool_args, context)
@@ -185,23 +188,14 @@ class AgentRunner:
                 tool_part.state.status = "success"
                 tool_part.state.output = result.output
 
-            if self.config.verbose:
-                print(f"   ✅ Result: {result.title}")
-                if result.output:
-                    # Show first 200 chars of output
-                    output_preview = result.output[:200]
-                    if len(result.output) > 200:
-                        output_preview += "..."
-                    print(f"   Output: {output_preview}")
-                if result.error:
-                    print(f"   ❌ Error: {result.error}")
+            # Show tool execution result
+            self.ui.print_tool_result(result.title, result.output, result.error)
 
         except Exception as e:
             tool_part.state.status = "error"
             tool_part.state.error = str(e)
 
-            if self.config.verbose:
-                print(f"   ❌ Tool execution failed: {e}")
+            self.ui.print_tool_result("Execution Failed", None, str(e))
 
         return tool_part
 
@@ -246,19 +240,15 @@ class AgentRunner:
         # Get system prompt from agent
         system_prompt = await self.agent.get_system_prompt()
 
-        if self.config.verbose:
-            print(f"\n{'=' * 60}")
-            print(f"Agent: {self.agent.name}")
-            print(f"Available tools: {len(tool_definitions)}")
-            print(f"User request: {user_input}")
-            print(f"{'=' * 60}\n")
+        # Print session header
+        self.ui.print_header(self.agent.name, len(tool_definitions), user_input)
 
         # Main iteration loop
         while self.iteration_count < self.config.max_iterations:
             self.iteration_count += 1
 
-            if self.config.verbose:
-                print(f"\n--- Iteration {self.iteration_count} ---")
+            # Print iteration marker
+            self.ui.print_iteration(self.iteration_count)
 
             # Create assistant message for this iteration
             self.current_message = Message(
@@ -291,8 +281,8 @@ class AgentRunner:
                         tool_calls.append(event.data)
 
             except Exception as e:
-                error_msg = f"\n❌ LLM Error: {str(e)}\n"
-                yield error_msg
+                self.ui.print_llm_error(str(e))
+                yield f"\n❌ LLM Error: {str(e)}\n"
                 break
 
             # Add text part if we got any text
@@ -305,8 +295,7 @@ class AgentRunner:
 
             # Execute tool calls if any
             if tool_calls:
-                if self.config.verbose:
-                    print(f"\n🔧 LLM requested {len(tool_calls)} tool call(s)")
+                self.ui.print_tool_calls(len(tool_calls))
 
                 tool_results = []
 
@@ -317,16 +306,13 @@ class AgentRunner:
 
                     # Check for doom loop
                     if self._detect_doom_loop(tool_name, tool_args):
+                        self.ui.print_doom_loop(tool_name)
+
                         doom_msg = f"\n\n⚠️  DOOM LOOP DETECTED!\n"
                         doom_msg += f"The agent is repeating the same action: {tool_name}\n"
                         doom_msg += f"This usually means the approach isn't working.\n"
                         doom_msg += f"Breaking the loop to prevent infinite execution.\n\n"
                         yield doom_msg
-
-                        if self.config.verbose:
-                            print(f"\n❌ Doom loop detected - breaking execution")
-                            print(f"   Tool: {tool_name}")
-                            print(f"   Recent history: {self.tool_call_history[-5:]}")
 
                         # Stop execution
                         return
@@ -421,11 +407,11 @@ class AgentRunner:
                     self.session.touch()
                     await self.session_manager.save_session(self.session)
 
-                if self.config.verbose:
-                    print(f"\n✅ Task complete after {self.iteration_count} iteration(s)")
+                self.ui.print_completion(self.iteration_count)
                 break
 
         if self.iteration_count >= self.config.max_iterations:
+            self.ui.print_max_iterations(self.config.max_iterations)
             warning = f"\n⚠️  Reached maximum iterations ({self.config.max_iterations})\n"
             yield warning
 
