@@ -3,12 +3,17 @@ Configuration System
 
 Manages PyCode configuration with YAML file support.
 Allows customization of agents, tools, models, and runtime settings.
+Supports environment variable substitution in config files.
 """
 
+import os
+import re
 from pathlib import Path
 from typing import Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 import yaml
+
+from .logging import get_logger, LogLevel
 
 
 class ModelConfig(BaseModel):
@@ -32,6 +37,8 @@ class AgentConfigSettings(BaseModel):
 class RuntimeConfig(BaseModel):
     """Runtime configuration"""
     verbose: bool = True
+    log_level: str = "normal"  # quiet, normal, verbose, debug
+    log_file: str | None = None
     auto_approve_tools: bool = False
     max_iterations: int = 10
     doom_loop_threshold: int = 3
@@ -90,6 +97,7 @@ class ConfigManager:
         """
         self.config_path = config_path
         self._config: PyCodeConfig | None = None
+        self.logger = get_logger()
 
     def _find_config_file(self) -> Path | None:
         """Find config file in default locations"""
@@ -97,6 +105,51 @@ class ConfigManager:
             if path.exists():
                 return path
         return None
+
+    def _substitute_env_vars(self, value: Any) -> Any:
+        """Recursively substitute environment variables in config values
+
+        Supports ${VAR_NAME} and ${VAR_NAME:default} syntax.
+
+        Examples:
+            api_key: ${ANTHROPIC_API_KEY}
+            api_key: ${ANTHROPIC_API_KEY:sk-ant-default}
+            base_url: ${API_URL:https://api.anthropic.com}
+        """
+        if isinstance(value, str):
+            # Pattern: ${VAR_NAME} or ${VAR_NAME:default}
+            pattern = r'\$\{([^}:]+)(?::([^}]*))?\}'
+
+            def replace_var(match):
+                var_name = match.group(1)
+                default_value = match.group(2) if match.group(2) is not None else ""
+
+                env_value = os.getenv(var_name)
+                if env_value is None:
+                    if default_value:
+                        self.logger.debug(
+                            f"Using default value for {var_name}",
+                            variable=var_name,
+                            default=default_value
+                        )
+                        return default_value
+                    else:
+                        self.logger.warning(
+                            f"Environment variable not set: {var_name}",
+                            variable=var_name
+                        )
+                        return ""
+                return env_value
+
+            return re.sub(pattern, replace_var, value)
+
+        elif isinstance(value, dict):
+            return {k: self._substitute_env_vars(v) for k, v in value.items()}
+
+        elif isinstance(value, list):
+            return [self._substitute_env_vars(item) for item in value]
+
+        return value
 
     def load(self) -> PyCodeConfig:
         """Load configuration from file or use defaults"""
@@ -108,13 +161,55 @@ class ConfigManager:
 
         if config_file and config_file.exists():
             try:
+                self.logger.debug("Loading config", file=str(config_file))
+
                 with open(config_file, "r") as f:
                     config_data = yaml.safe_load(f) or {}
+
+                # Substitute environment variables
+                config_data = self._substitute_env_vars(config_data)
+
+                # Validate and create config
                 self._config = PyCodeConfig.model_validate(config_data)
+
+                self.logger.info("Configuration loaded", file=str(config_file))
                 return self._config
+
+            except ValidationError as e:
+                self.logger.error(
+                    "Config validation failed",
+                    file=str(config_file),
+                    errors=len(e.errors())
+                )
+
+                # Show detailed validation errors
+                for error in e.errors():
+                    field = " -> ".join(str(x) for x in error["loc"])
+                    self.logger.error(
+                        f"  {field}: {error['msg']}",
+                        type=error["type"]
+                    )
+
+                self.logger.warning("Using default configuration due to validation errors")
+
+            except yaml.YAMLError as e:
+                self.logger.error(
+                    "Failed to parse YAML config",
+                    file=str(config_file),
+                    error=str(e)
+                )
+                self.logger.warning("Using default configuration")
+
             except Exception as e:
-                print(f"Warning: Failed to load config from {config_file}: {e}")
-                print("Using default configuration")
+                self.logger.error(
+                    "Failed to load config",
+                    file=str(config_file),
+                    error=str(e)
+                )
+                self.logger.warning("Using default configuration")
+
+        else:
+            self.logger.debug("No config file found, using defaults")
 
         # Use default configuration
         self._config = self._get_default_config()
