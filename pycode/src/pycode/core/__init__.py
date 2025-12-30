@@ -1,7 +1,7 @@
 """Core data structures and utilities"""
 
 from .identifier import Identifier
-from .message import Message, MessagePart, TextPart, ToolPart, ReasoningPart
+from .message import Message, MessagePart, TextPart, ToolPart, ReasoningPart, ToolState
 from .session import Session
 
 __all__ = [
@@ -11,5 +11,6 @@ __all__ = [
     "TextPart",
     "ToolPart",
     "ReasoningPart",
+    "ToolState",
     "Session",
 ]

@@ -96,6 +96,10 @@ class Agent(ABC):
         """Get the system prompt for this agent"""
         pass
 
+    def can_use_tool(self, tool_name: str) -> bool:
+        """Check if agent can use a specific tool"""
+        return self.config.is_tool_enabled(tool_name)
+
     async def on_message(self, message: str) -> None:
         """Called when a new user message is received"""
         pass
