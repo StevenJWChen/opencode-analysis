@@ -19,6 +19,9 @@ from .core import Session, Message, TextPart, ToolPart, ToolState
 from .agents import Agent, BuildAgent
 from .tools import ToolRegistry, ToolContext
 from .providers import Provider
+from .history import MessageHistory
+from .session_manager import SessionManager
+from .storage import Storage
 
 
 @dataclass
@@ -29,6 +32,8 @@ class RunConfig:
     verbose: bool = True
     auto_approve_tools: bool = False  # If False, ask for approval
     auto_approve_destructive: bool = False  # For rm, dd, etc.
+    doom_loop_detection: bool = True  # Enable doom loop detection
+    doom_loop_threshold: int = 3  # Number of identical calls before triggering
 
 
 class AgentRunner:
@@ -41,6 +46,7 @@ class AgentRunner:
         provider: Provider,
         registry: ToolRegistry,
         config: RunConfig | None = None,
+        storage: Storage | None = None,
     ):
         self.session = session
         self.agent = agent
@@ -48,8 +54,16 @@ class AgentRunner:
         self.registry = registry
         self.config = config or RunConfig()
 
+        # Storage and history management
+        self.storage = storage or Storage()
+        self.history = MessageHistory(self.storage)
+        self.session_manager = SessionManager(self.storage)
+
         self.current_message: Message | None = None
         self.iteration_count = 0
+
+        # Doom loop detection
+        self.tool_call_history: list[tuple[str, dict]] = []  # (tool_name, args)
 
     def _build_tool_definitions(self) -> list[dict[str, Any]]:
         """Build tool definitions for LLM"""
@@ -72,16 +86,55 @@ class AgentRunner:
 
         return tool_defs
 
-    def _build_conversation_history(self) -> list[dict[str, Any]]:
+    async def _build_conversation_history(self) -> list[dict[str, Any]]:
         """Build conversation history for LLM"""
-        # In a full implementation, this would load from storage
-        # For now, we'll build from current session messages
-        messages = []
+        # Load conversation history from storage
+        try:
+            conversation = await self.history.get_conversation_for_llm(
+                self.session.id,
+                max_messages=20  # Keep last 20 messages
+            )
+            return conversation
+        except Exception as e:
+            # If loading fails, return empty conversation
+            if self.config.verbose:
+                print(f"Warning: Could not load conversation history: {e}")
+            return []
 
-        # Add existing messages
-        # TODO: Load from storage based on session.id
+    def _detect_doom_loop(self, tool_name: str, tool_args: dict) -> bool:
+        """
+        Detect if we're in a doom loop (repeating the same action)
 
-        return messages
+        Returns:
+            True if doom loop detected, False otherwise
+        """
+        if not self.config.doom_loop_detection:
+            return False
+
+        # Normalize args for comparison (convert to JSON string)
+        normalized_args = json.dumps(tool_args, sort_keys=True)
+
+        # Add to history
+        self.tool_call_history.append((tool_name, normalized_args))
+
+        # Check for repeated identical calls
+        if len(self.tool_call_history) >= self.config.doom_loop_threshold:
+            # Look at last N calls
+            recent_calls = self.tool_call_history[-self.config.doom_loop_threshold:]
+
+            # Check if all recent calls are identical
+            first_call = recent_calls[0]
+            if all(call == first_call for call in recent_calls):
+                return True
+
+            # Check for alternating patterns (A-B-A-B...)
+            if len(recent_calls) >= 4:
+                # Check if we're alternating between two actions
+                pattern_1 = [recent_calls[0], recent_calls[1]] * 2
+                if recent_calls[-4:] == pattern_1:
+                    return True
+
+        return False
 
     async def _execute_tool_call(
         self, tool_name: str, tool_args: dict[str, Any], tool_call_id: str
@@ -166,8 +219,15 @@ class AgentRunner:
         )
         user_message.add_part(TextPart(text=user_input))
 
+        # Save user message to history
+        await self.history.save_message(self.session.id, user_message)
+
+        # Update session timestamp
+        self.session.touch()
+        await self.session_manager.save_session(self.session)
+
         # Build conversation
-        conversation = self._build_conversation_history()
+        conversation = await self._build_conversation_history()
         conversation.append({"role": "user", "content": user_input})
 
         # Get tool definitions
@@ -241,6 +301,22 @@ class AgentRunner:
                     tool_args = tool_call.get("arguments", {})
                     tool_call_id = tool_call.get("id", f"call_{self.iteration_count}")
 
+                    # Check for doom loop
+                    if self._detect_doom_loop(tool_name, tool_args):
+                        doom_msg = f"\n\n⚠️  DOOM LOOP DETECTED!\n"
+                        doom_msg += f"The agent is repeating the same action: {tool_name}\n"
+                        doom_msg += f"This usually means the approach isn't working.\n"
+                        doom_msg += f"Breaking the loop to prevent infinite execution.\n\n"
+                        yield doom_msg
+
+                        if self.config.verbose:
+                            print(f"\n❌ Doom loop detected - breaking execution")
+                            print(f"   Tool: {tool_name}")
+                            print(f"   Recent history: {self.tool_call_history[-5:]}")
+
+                        # Stop execution
+                        return
+
                     # Execute the tool
                     tool_part = await self._execute_tool_call(tool_name, tool_args, tool_call_id)
 
@@ -279,11 +355,23 @@ class AgentRunner:
                 # Add tool results
                 conversation.append({"role": "user", "content": tool_results})
 
+                # Save assistant message with tool calls
+                if self.current_message:
+                    await self.history.save_message(self.session.id, self.current_message)
+                    self.session.touch()
+                    await self.session_manager.save_session(self.session)
+
                 # Continue loop - LLM will see results and decide next step
                 continue
 
             else:
                 # No tool calls - LLM is done
+                # Save the final message
+                if self.current_message:
+                    await self.history.save_message(self.session.id, self.current_message)
+                    self.session.touch()
+                    await self.session_manager.save_session(self.session)
+
                 if self.config.verbose:
                     print(f"\n✅ Task complete after {self.iteration_count} iteration(s)")
                 break

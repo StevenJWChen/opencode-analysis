@@ -1,5 +1,9 @@
-"""CLI interface"""
+"""
+PyCode CLI
 
-from .main import main
+Command-line interface for PyCode.
+"""
 
-__all__ = ["main"]
+from .commands import Commands
+
+__all__ = ["Commands"]
