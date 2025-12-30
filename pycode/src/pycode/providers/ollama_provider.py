@@ -10,6 +10,8 @@ from typing import Any, AsyncIterator
 import httpx
 
 from .base import Provider, ProviderConfig, StreamEvent
+from ..retry import retry_network
+from ..logging import get_logger
 
 
 class OllamaProvider(Provider):
@@ -30,11 +32,13 @@ class OllamaProvider(Provider):
         self.base_url = config.base_url or "http://localhost:11434"
         self.timeout = config.extra.get("timeout", 120)
         self.client = httpx.AsyncClient(timeout=self.timeout)
+        self.logger = get_logger()
 
     @property
     def name(self) -> str:
         return "ollama"
 
+    @retry_network
     async def stream(
         self,
         model: str,
@@ -58,6 +62,14 @@ class OllamaProvider(Provider):
         Yields:
             StreamEvent objects with type and data
         """
+
+        self.logger.debug(
+            "Streaming from Ollama",
+            model=model,
+            base_url=self.base_url,
+            messages=len(messages),
+            tools=len(tools) if tools else 0
+        )
 
         # Build messages for Ollama
         ollama_messages = []

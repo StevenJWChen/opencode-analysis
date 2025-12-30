@@ -10,6 +10,8 @@ from typing import Any, AsyncIterator
 import httpx
 
 from .base import Provider, ProviderConfig, StreamEvent
+from ..retry import retry_api_call
+from ..logging import get_logger
 
 
 class GeminiProvider(Provider):
@@ -34,11 +36,13 @@ class GeminiProvider(Provider):
         self.base_url = config.base_url or "https://generativelanguage.googleapis.com/v1beta"
         self.timeout = config.extra.get("timeout", 60)
         self.client = httpx.AsyncClient(timeout=self.timeout)
+        self.logger = get_logger()
 
     @property
     def name(self) -> str:
         return "gemini"
 
+    @retry_api_call
     async def stream(
         self,
         model: str,
@@ -62,6 +66,14 @@ class GeminiProvider(Provider):
         Yields:
             StreamEvent objects
         """
+
+        self.logger.debug(
+            "Streaming from Gemini",
+            model=model,
+            base_url=self.base_url,
+            messages=len(messages),
+            tools=len(tools) if tools else 0
+        )
 
         # Build contents for Gemini
         contents = []

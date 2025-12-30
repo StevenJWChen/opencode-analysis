@@ -10,6 +10,8 @@ from typing import Any, AsyncIterator
 import httpx
 
 from .base import Provider, ProviderConfig, StreamEvent
+from ..retry import retry_api_call
+from ..logging import get_logger
 
 
 class MistralProvider(Provider):
@@ -38,11 +40,13 @@ class MistralProvider(Provider):
             timeout=self.timeout,
             headers={"Authorization": f"Bearer {self.api_key}"}
         )
+        self.logger = get_logger()
 
     @property
     def name(self) -> str:
         return "mistral"
 
+    @retry_api_call
     async def stream(
         self,
         model: str,
@@ -66,6 +70,14 @@ class MistralProvider(Provider):
         Yields:
             StreamEvent objects
         """
+
+        self.logger.debug(
+            "Streaming from Mistral",
+            model=model,
+            base_url=self.base_url,
+            messages=len(messages),
+            tools=len(tools) if tools else 0
+        )
 
         # Build messages for Mistral
         mistral_messages = []

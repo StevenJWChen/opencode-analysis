@@ -3,6 +3,8 @@
 from typing import Any, AsyncIterator
 import anthropic
 from .base import Provider, ProviderConfig, StreamEvent
+from ..retry import retry_api_call
+from ..logging import get_logger
 
 
 class AnthropicProvider(Provider):
@@ -11,11 +13,13 @@ class AnthropicProvider(Provider):
     def __init__(self, config: ProviderConfig):
         super().__init__(config)
         self.client = anthropic.AsyncAnthropic(api_key=config.api_key)
+        self.logger = get_logger()
 
     @property
     def name(self) -> str:
         return "anthropic"
 
+    @retry_api_call
     async def stream(
         self,
         model: str,
@@ -27,6 +31,13 @@ class AnthropicProvider(Provider):
         **kwargs: Any,
     ) -> AsyncIterator[StreamEvent]:
         """Stream responses from Claude"""
+
+        self.logger.debug(
+            "Streaming from Anthropic",
+            model=model,
+            messages=len(messages),
+            tools=len(tools) if tools else 0
+        )
 
         # Convert messages to Anthropic format
         anthropic_messages = []
