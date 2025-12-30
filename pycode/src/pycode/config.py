@@ -233,7 +233,7 @@ class ConfigManager:
         with open(save_path, "w") as f:
             yaml.safe_dump(config_dict, f, default_flow_style=False, sort_keys=False)
 
-        print(f"Configuration saved to: {save_path}")
+        self.logger.info("Configuration saved", path=str(save_path))
 
     def _get_default_config(self) -> PyCodeConfig:
         """Get default configuration"""
@@ -302,15 +302,9 @@ class ConfigManager:
         default_config = self._get_default_config()
         save_path = path or self.DEFAULT_CONFIG_LOCATIONS[0]
         self.save(default_config, save_path)
-        print(f"\nDefault configuration created at: {save_path}")
-        print("\nYou can customize:")
-        print("  - runtime.max_iterations")
-        print("  - runtime.auto_approve_tools")
-        print("  - runtime.doom_loop_threshold")
-        print("  - default_model.model_id")
-        print("  - agents.*.enabled_tools")
-        print("  - providers.*.api_key")
-        print("\nEdit the file and restart PyCode to apply changes.")
+        self.logger.info("Default configuration created", path=str(save_path))
+        self.logger.info("Customizable settings: runtime.max_iterations, auto_approve_tools, doom_loop_threshold, default_model, agents, providers")
+        self.logger.info("Edit the configuration file and restart PyCode to apply changes")
 
     def get_agent_config(self, agent_name: str) -> AgentConfigSettings | None:
         """Get configuration for a specific agent

@@ -25,6 +25,7 @@ from .storage import Storage
 from .tool_approval import ToolApprovalManager
 from .ui import get_ui, TerminalUI
 from .tool_validation import validate_tool_parameters, ToolValidationError, register_standard_schemas
+from .logging import get_logger
 
 
 @dataclass
@@ -68,6 +69,9 @@ class AgentRunner:
         # Terminal UI
         self.ui = get_ui(verbose=self.config.verbose)
 
+        # Logger
+        self.logger = get_logger()
+
         # Register standard tool schemas for validation
         register_standard_schemas()
 
@@ -109,8 +113,11 @@ class AgentRunner:
             return conversation
         except Exception as e:
             # If loading fails, return empty conversation
-            if self.config.verbose:
-                print(f"Warning: Could not load conversation history: {e}")
+            self.logger.warning(
+                "Could not load conversation history",
+                session_id=self.session.id,
+                error=str(e)
+            )
             return []
 
     def _detect_doom_loop(self, tool_name: str, tool_args: dict) -> bool:
