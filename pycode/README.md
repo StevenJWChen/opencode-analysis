@@ -207,3 +207,12 @@ MIT
 ## Credits
 
 Inspired by [OpenCode](https://github.com/sst/opencode) - The open source AI coding agent.
+
+## Platform Support
+
+PyCode works on:
+- ✅ **Windows** 10/11 (PowerShell, CMD, Git Bash)
+- ✅ **macOS** 10.15+ (Catalina and later)
+- ✅ **Linux** (Ubuntu, Debian, Fedora, etc.)
+
+See [WINDOWS_COMPATIBILITY.md](WINDOWS_COMPATIBILITY.md) for Windows-specific setup.

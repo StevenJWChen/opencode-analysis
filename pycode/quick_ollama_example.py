@@ -42,63 +42,18 @@ async def main():
 
     # Configure logging
     configure_logging(level=LogLevel.NORMAL)
+    
+    # 1. Configure Ollama provider
+    print("📡 Connecting to Ollama at http://localhost:11434...")
+    config = ProviderConfig(
+        name="ollama",
+        base_url="http://localhost:11434",
+        extra={"timeout": 120}
+    )
 
-    # Try to load config, fallback to Ollama defaults
-    print("📋 Loading configuration...")
-    try:
-        config = load_config()
-        # Override with Ollama if user has a different provider configured
-        if config.default_model.provider != "ollama":
-            print("   ℹ Config uses different provider, overriding with Ollama")
-            model_config = ModelConfig(
-                provider="ollama",
-                model_id="llama3.2:latest",
-                temperature=0.7,
-                max_tokens=4096
-            )
-            provider_settings = ProviderSettings(
-                base_url="http://localhost:11434",
-                timeout=120
-            )
-        else:
-            model_config = config.default_model
-            provider_settings = config.providers.get("ollama", ProviderSettings(
-                base_url="http://localhost:11434",
-                timeout=120
-            ))
-    except Exception as e:
-        print(f"   ⚠ Could not load config, using Ollama defaults")
-        model_config = ModelConfig(
-            provider="ollama",
-            model_id="llama3.2:latest",
-            temperature=0.7,
-            max_tokens=4096
-        )
-        provider_settings = ProviderSettings(
-            base_url="http://localhost:11434",
-            timeout=120
-        )
-
-    print(f"   ✓ Using model: {model_config.model_id}")
-
-    # Create Ollama provider
-    print(f"\n📡 Connecting to Ollama at {provider_settings.base_url}...")
-    try:
-        provider = ProviderFactory.create_provider(
-            provider_type="ollama",
-            model_config=model_config,
-            provider_settings=provider_settings,
-        )
-        print("   ✓ Connected to Ollama")
-    except Exception as e:
-        print(f"   ❌ Failed to connect: {e}")
-        print("\nTroubleshooting:")
-        print("  1. Is Ollama running? (ollama serve)")
-        print("  2. Is the model downloaded? (ollama pull llama3.2)")
-        print("  3. Check connection: curl http://localhost:11434/api/version")
-        sys.exit(1)
-
-    # Create session
+    provider = OllamaProvider(config)
+    
+    # 2. Create session
     session = Session(
         project_id="ollama-demo",
         directory=str(Path.cwd()),
