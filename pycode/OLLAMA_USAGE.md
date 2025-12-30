@@ -242,6 +242,7 @@ from pycode.core import Session
 async def main():
     # Configure Ollama provider
     config = ProviderConfig(
+        name="ollama",
         base_url="http://localhost:11434",
         extra={"timeout": 120}
     )
@@ -455,6 +456,7 @@ providers:
 ```python
 # In Python code
 config = ProviderConfig(
+    name="ollama",
     base_url="http://localhost:11434",
     extra={
         "timeout": 120,

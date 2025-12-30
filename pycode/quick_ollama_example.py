@@ -30,10 +30,11 @@ async def main():
     # 1. Configure Ollama provider
     print("📡 Connecting to Ollama at http://localhost:11434...")
     config = ProviderConfig(
+        name="ollama",
         base_url="http://localhost:11434",
         extra={"timeout": 120}
     )
-    
+
     provider = OllamaProvider(config)
     
     # 2. Create session
