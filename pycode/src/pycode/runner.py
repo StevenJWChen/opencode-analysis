@@ -24,6 +24,7 @@ from .session_manager import SessionManager
 from .storage import Storage
 from .tool_approval import ToolApprovalManager
 from .ui import get_ui, TerminalUI
+from .tool_validation import validate_tool_parameters, ToolValidationError, register_standard_schemas
 
 
 @dataclass
@@ -66,6 +67,9 @@ class AgentRunner:
 
         # Terminal UI
         self.ui = get_ui(verbose=self.config.verbose)
+
+        # Register standard tool schemas for validation
+        register_standard_schemas()
 
         self.current_message: Message | None = None
         self.iteration_count = 0
@@ -170,6 +174,15 @@ class AgentRunner:
         )
 
         try:
+            # Validate tool parameters
+            is_valid, errors = validate_tool_parameters(tool_name, tool_args)
+            if not is_valid:
+                error_msg = f"Invalid parameters:\n" + "\n".join(f"  - {e}" for e in errors)
+                tool_part.state.status = "error"
+                tool_part.state.error = error_msg
+                self.ui.print_tool_result("Validation Failed", None, error_msg)
+                return tool_part
+
             # Update status
             tool_part.state.status = "running"
 
