@@ -33,11 +33,15 @@ class MistralProvider(Provider):
         super().__init__(config)
         self.api_key = config.api_key
         self.base_url = config.base_url or "https://api.mistral.ai/v1"
-        self.timeout = config.timeout or 60
+        self.timeout = config.extra.get("timeout", 60)
         self.client = httpx.AsyncClient(
             timeout=self.timeout,
             headers={"Authorization": f"Bearer {self.api_key}"}
         )
+
+    @property
+    def name(self) -> str:
+        return "mistral"
 
     async def stream(
         self,
@@ -210,6 +214,15 @@ class MistralProvider(Provider):
             "content": response_text,
             "tool_calls": tool_calls if tool_calls else None,
         }
+
+    async def list_models(self) -> list[str]:
+        """List available Mistral models"""
+        return [
+            "mistral-tiny",
+            "mistral-small",
+            "mistral-medium",
+            "mistral-large",
+        ]
 
     async def close(self):
         """Close the HTTP client"""

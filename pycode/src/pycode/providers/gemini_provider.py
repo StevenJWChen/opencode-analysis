@@ -32,8 +32,12 @@ class GeminiProvider(Provider):
         super().__init__(config)
         self.api_key = config.api_key
         self.base_url = config.base_url or "https://generativelanguage.googleapis.com/v1beta"
-        self.timeout = config.timeout or 60
+        self.timeout = config.extra.get("timeout", 60)
         self.client = httpx.AsyncClient(timeout=self.timeout)
+
+    @property
+    def name(self) -> str:
+        return "gemini"
 
     async def stream(
         self,
@@ -210,6 +214,14 @@ class GeminiProvider(Provider):
             "content": response_text,
             "tool_calls": tool_calls if tool_calls else None,
         }
+
+    async def list_models(self) -> list[str]:
+        """List available Gemini models"""
+        return [
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "gemini-1.0-pro",
+        ]
 
     async def close(self):
         """Close the HTTP client"""

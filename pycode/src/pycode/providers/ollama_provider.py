@@ -28,8 +28,12 @@ class OllamaProvider(Provider):
     def __init__(self, config: ProviderConfig):
         super().__init__(config)
         self.base_url = config.base_url or "http://localhost:11434"
-        self.timeout = config.timeout or 120
+        self.timeout = config.extra.get("timeout", 120)
         self.client = httpx.AsyncClient(timeout=self.timeout)
+
+    @property
+    def name(self) -> str:
+        return "ollama"
 
     async def stream(
         self,
