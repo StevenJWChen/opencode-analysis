@@ -22,6 +22,7 @@ from .providers import Provider
 from .history import MessageHistory
 from .session_manager import SessionManager
 from .storage import Storage
+from .tool_approval import ToolApprovalManager
 
 
 @dataclass
@@ -58,6 +59,9 @@ class AgentRunner:
         self.storage = storage or Storage()
         self.history = MessageHistory(self.storage)
         self.session_manager = SessionManager(self.storage)
+
+        # Tool approval management
+        self.approval_manager = ToolApprovalManager()
 
         self.current_message: Message | None = None
         self.iteration_count = 0
@@ -326,6 +330,41 @@ class AgentRunner:
 
                         # Stop execution
                         return
+
+                    # Check tool approval (if not auto-approve)
+                    decision = self.approval_manager.should_approve(
+                        tool_name,
+                        tool_args,
+                        auto_approve=self.config.auto_approve_tools
+                    )
+
+                    if not decision.approved:
+                        # Tool was denied
+                        denial_msg = f"\n❌ Tool call denied by user: {tool_name}\n"
+                        yield denial_msg
+
+                        # Create error tool part
+                        tool_part = ToolPart(
+                            session_id=self.session.id,
+                            message_id=self.current_message.id,
+                            tool=tool_name,
+                            call_id=tool_call_id,
+                            state=ToolState(
+                                status="rejected",
+                                input=tool_args,
+                                error="Tool call denied by user"
+                            ),
+                        )
+                        self.current_message.add_part(tool_part)
+
+                        # Add to tool results
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_call_id,
+                            "content": "Tool call was denied by user",
+                            "is_error": True,
+                        })
+                        continue
 
                     # Execute the tool
                     tool_part = await self._execute_tool_call(tool_name, tool_args, tool_call_id)
