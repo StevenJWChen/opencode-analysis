@@ -39,6 +39,8 @@ from pycode.tools import (
     GrepTool,
 )
 from pycode.providers import AnthropicProvider, ProviderConfig
+from pycode.storage import Storage
+from pycode.config import load_config
 
 
 async def run_vibe_coding_demo():
@@ -100,13 +102,21 @@ async def run_vibe_coding_demo():
     registry.register(GrepTool())
     print(f"   Tools: {len(registry.get_all())} registered")
 
-    # Create runner
+    # Load configuration
+    pycode_config = load_config()
+
+    # Create storage for history management
+    storage = Storage()
+
+    # Create runner with new features
     config = RunConfig(
-        max_iterations=10,
+        max_iterations=pycode_config.runtime.max_iterations,
         verbose=True,
-        auto_approve_tools=True
+        auto_approve_tools=True,
+        doom_loop_detection=pycode_config.runtime.doom_loop_detection,
+        doom_loop_threshold=pycode_config.runtime.doom_loop_threshold,
     )
-    runner = AgentRunner(session, agent, provider, registry, config)
+    runner = AgentRunner(session, agent, provider, registry, config, storage)
 
     print()
     print("=" * 70)
@@ -178,7 +188,7 @@ def main():
     print("  What Just Happened?")
     print("=" * 70)
     print()
-    print("You just witnessed REAL vibe coding:")
+    print("You just witnessed REAL vibe coding with NEW features:")
     print()
     print("  1. ✅ Claude (real LLM) received your request")
     print("  2. ✅ Claude decided what code to write")
@@ -188,7 +198,19 @@ def main():
     print("  6. ✅ If errors: Claude fixed them automatically")
     print("  7. ✅ Claude verified it works")
     print()
+    print("NEW in this version:")
+    print("  🎉 Session was saved - you can resume it later!")
+    print("  🎉 Message history was persisted to storage")
+    print("  🎉 Doom loop detection prevented infinite loops")
+    print("  🎉 Configuration loaded from config file")
+    print()
     print("This is the power of vibe coding!")
+    print("=" * 70)
+    print()
+    print("Try the new CLI commands:")
+    print("  python pycode_cli.py list         - See all sessions")
+    print("  python pycode_cli.py resume <id>  - Resume this session")
+    print("  python pycode_cli.py stats        - View statistics")
     print("=" * 70)
     print()
 

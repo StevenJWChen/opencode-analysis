@@ -1,0 +1,98 @@
+# PyCode Configuration Example
+# Copy this to ~/.pycode/config.yaml or .pycode.yaml and customize
+
+# Runtime settings
+runtime:
+  verbose: true
+  auto_approve_tools: false  # Set to true to auto-approve all tool calls
+  max_iterations: 10
+  doom_loop_threshold: 3  # Number of repeated actions before detecting doom loop
+  doom_loop_detection: true
+  context_window_tokens: 100000
+  max_conversation_messages: 20
+
+# Default model for all agents
+default_model:
+  provider: anthropic
+  model_id: claude-3-5-sonnet-20241022
+  temperature: 0.7
+  max_tokens: 4096
+
+# Agent-specific configurations
+agents:
+  # Build agent - full access for development
+  build:
+    name: build
+    model:
+      provider: anthropic
+      model_id: claude-3-5-sonnet-20241022
+      temperature: 0.7
+      max_tokens: 4096
+    enabled_tools:
+      - write
+      - read
+      - edit
+      - bash
+      - grep
+      - glob
+      - multiedit
+      - git
+      - webfetch
+      - snapshot
+      - patch
+    edit_permission: allow
+    bash_permissions:
+      "*": allow  # Allow all bash commands
+    max_iterations: 10
+
+  # Plan agent - read-only for planning
+  plan:
+    name: plan
+    model:
+      provider: anthropic
+      model_id: claude-3-5-sonnet-20241022
+      temperature: 0.5
+      max_tokens: 2048
+    enabled_tools:
+      - read
+      - grep
+      - glob
+      - ls
+      - codesearch
+    edit_permission: deny
+    bash_permissions:
+      "*": deny  # No bash access
+    max_iterations: 5
+
+# Provider settings
+providers:
+  anthropic:
+    api_key: null  # Load from ANTHROPIC_API_KEY env var
+    base_url: null  # Use default
+    timeout: 60
+
+  openai:
+    api_key: null  # Load from OPENAI_API_KEY env var
+    base_url: null  # Use default
+    timeout: 60
+
+# Storage location
+storage_path: ~/.pycode/storage
+
+# Enabled tools (global)
+enabled_tools:
+  - write
+  - read
+  - edit
+  - bash
+  - grep
+  - glob
+  - ls
+  - multiedit
+  - git
+  - webfetch
+  - snapshot
+  - patch
+  - ask
+  - todo
+  - codesearch
