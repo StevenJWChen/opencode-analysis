@@ -11,6 +11,15 @@ import sys
 import os
 from pathlib import Path
 
+# Fix Windows console encoding issues
+if sys.platform == 'win32':
+    try:
+        os.system('chcp 65001 > nul 2>&1')
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except:
+        pass
+
 # Add src to path
 sys.path.insert(0, 'src')
 
@@ -38,7 +47,8 @@ from pycode.tools import (
     EditTool,
     GrepTool,
 )
-from pycode.providers import AnthropicProvider, ProviderConfig
+from pycode.provider_factory import ProviderFactory
+from pycode.config import ModelConfig, ProviderSettings
 from pycode.storage import Storage
 from pycode.config import load_config
 
@@ -53,20 +63,28 @@ async def run_vibe_coding_demo():
     print("=" * 70)
     print()
 
-    # Check for API key
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("❌ No API key found!")
+    # Check for Ollama (no API key needed!)
+    print("Checking for Ollama...")
+    try:
+        import httpx
+        response = httpx.get("http://localhost:11434/api/version", timeout=2)
+        ollama_available = response.status_code == 200
+    except:
+        ollama_available = False
+
+    if not ollama_available:
+        print("❌ Ollama not running!")
         print()
-        print("Please set up your API key first:")
-        print("  python setup_api_key.py")
+        print("To use this demo with Ollama:")
+        print("  1. Install Ollama from https://ollama.com/download")
+        print("  2. Run: ollama serve")
+        print("  3. Pull a model: ollama pull llama3.2")
         print()
-        print("Or set it manually:")
-        print('  export ANTHROPIC_API_KEY="sk-ant-your-key-here"')
+        print("Then run this script again!")
         print()
         return
 
-    print("✅ API key found!")
+    print("✅ Ollama is running!")
     print()
 
     # Setup
@@ -86,12 +104,27 @@ async def run_vibe_coding_demo():
 
     # Setup agent
     agent = BuildAgent()
+    # Override model_id to use Ollama
+    agent.config.model_id = "llama3.2:latest"
     print(f"   Agent: {agent.name}")
 
-    # Setup provider
-    provider_config = ProviderConfig(api_key=api_key)
-    provider = AnthropicProvider(provider_config)
-    print(f"   Provider: Anthropic (Claude)")
+    # Setup Ollama provider (no API key needed!)
+    model_config = ModelConfig(
+        provider="ollama",
+        model_id="llama3.2:latest",
+        temperature=0.7,
+        max_tokens=4096
+    )
+    provider_settings = ProviderSettings(
+        base_url="http://localhost:11434",
+        timeout=120
+    )
+    provider = ProviderFactory.create_provider(
+        provider_type="ollama",
+        model_config=model_config,
+        provider_settings=provider_settings
+    )
+    print(f"   Provider: Ollama (Local LLM)")
 
     # Setup tools
     registry = ToolRegistry()
@@ -190,21 +223,24 @@ def main():
     print()
     print("You just witnessed REAL vibe coding with NEW features:")
     print()
-    print("  1. ✅ Claude (real LLM) received your request")
-    print("  2. ✅ Claude decided what code to write")
-    print("  3. ✅ Claude used WriteTool to create the file")
-    print("  4. ✅ Claude used BashTool to run it")
-    print("  5. ✅ Claude saw the actual output")
-    print("  6. ✅ If errors: Claude fixed them automatically")
-    print("  7. ✅ Claude verified it works")
+    print("  1. ✅ Ollama (local LLM) received your request")
+    print("  2. ✅ Ollama decided what code to write")
+    print("  3. ✅ Ollama used WriteTool to create the file")
+    print("  4. ✅ Ollama used BashTool to run it")
+    print("  5. ✅ Ollama saw the actual output")
+    print("  6. ✅ If errors: Ollama fixed them automatically")
+    print("  7. ✅ Ollama verified it works")
     print()
-    print("NEW in this version:")
+    print("Benefits of using Ollama:")
+    print("  🎉 Runs locally - no internet needed")
+    print("  🎉 No API key required - completely free")
+    print("  🎉 Private - your code never leaves your machine")
     print("  🎉 Session was saved - you can resume it later!")
     print("  🎉 Message history was persisted to storage")
     print("  🎉 Doom loop detection prevented infinite loops")
     print("  🎉 Configuration loaded from config file")
     print()
-    print("This is the power of vibe coding!")
+    print("This is the power of vibe coding with local LLMs!")
     print("=" * 70)
     print()
     print("Try the new CLI commands:")

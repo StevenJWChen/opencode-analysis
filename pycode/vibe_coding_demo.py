@@ -15,6 +15,15 @@ import asyncio
 import sys
 import os
 
+# Fix Windows console encoding issues
+if sys.platform == 'win32':
+    try:
+        os.system('chcp 65001 > nul 2>&1')
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except:
+        pass
+
 # Add src to path
 sys.path.insert(0, 'src')
 
@@ -33,7 +42,8 @@ from pycode.tools import (
 # Try to import runner and provider, but it's okay if they fail
 try:
     from pycode.runner import AgentRunner, RunConfig
-    from pycode.providers import AnthropicProvider, ProviderConfig
+    from pycode.provider_factory import ProviderFactory
+    from pycode.config import ModelConfig, ProviderSettings
     HAS_RUNNER = True
 except ImportError as e:
     HAS_RUNNER = False
@@ -60,12 +70,26 @@ async def demo_write_run_fix():
     print("=" * 70)
     print()
 
-    # Check if we can run with real LLM
-    if not HAS_RUNNER or not os.getenv("ANTHROPIC_API_KEY"):
-        if not HAS_RUNNER:
-            print("\n⚠️  AgentRunner not available - using mock demo instead\n")
-        else:
-            print("\n⚠️  ANTHROPIC_API_KEY not set - using mock demo instead\n")
+    # Check if we can run with real LLM (using Ollama, no API key needed)
+    if not HAS_RUNNER:
+        print("\n⚠️  AgentRunner not available - using mock demo instead\n")
+        await demo_mock_workflow()
+        return
+
+    # Try Ollama first (no API key needed), check if it's available
+    try:
+        import httpx
+        response = httpx.get("http://localhost:11434/api/version", timeout=2)
+        ollama_available = response.status_code == 200
+    except:
+        ollama_available = False
+
+    if not ollama_available:
+        print("\n⚠️  Ollama not running - using mock demo instead\n")
+        print("To use real LLM:")
+        print("  1. Install Ollama from https://ollama.com/download")
+        print("  2. Run: ollama serve")
+        print("  3. Pull a model: ollama pull llama3.2\n")
         await demo_mock_workflow()
         return
 
@@ -85,12 +109,26 @@ async def demo_write_run_fix():
 
     # Setup agent
     agent = BuildAgent()
+    # Override model_id to use Ollama
+    agent.config.model_id = "llama3.2:latest"
 
-    # Setup provider
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-
-    provider_config = ProviderConfig(api_key=api_key)
-    provider = AnthropicProvider(provider_config)
+    # Setup Ollama provider (no API key needed!)
+    print("Using Ollama (local LLM - no API key needed)")
+    model_config = ModelConfig(
+        provider="ollama",
+        model_id="llama3.2:latest",
+        temperature=0.7,
+        max_tokens=4096
+    )
+    provider_settings = ProviderSettings(
+        base_url="http://localhost:11434",
+        timeout=120
+    )
+    provider = ProviderFactory.create_provider(
+        provider_type="ollama",
+        model_config=model_config,
+        provider_settings=provider_settings
+    )
 
     # Setup tools
     registry = ToolRegistry()
