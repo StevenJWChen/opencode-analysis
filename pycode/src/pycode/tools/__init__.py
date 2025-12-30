@@ -10,6 +10,12 @@ from .glob import GlobTool
 from .ls import LsTool
 from .webfetch import WebFetchTool
 from .git import GitTool
+from .multiedit import MultiEditTool
+from .snapshot import SnapshotTool
+from .patch import PatchTool
+from .ask import AskTool
+from .todo import TodoTool
+from .codesearch import CodeSearchTool
 
 __all__ = [
     "Tool",
@@ -25,4 +31,10 @@ __all__ = [
     "LsTool",
     "WebFetchTool",
     "GitTool",
+    "MultiEditTool",
+    "SnapshotTool",
+    "PatchTool",
+    "AskTool",
+    "TodoTool",
+    "CodeSearchTool",
 ]
