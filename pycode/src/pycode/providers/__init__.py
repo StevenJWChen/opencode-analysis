@@ -2,10 +2,11 @@
 
 from .base import Provider, ProviderConfig
 from .anthropic_provider import AnthropicProvider
+from .ollama_provider import OllamaProvider
 
 # Optional import for OpenAI
 try:
     from .openai_provider import OpenAIProvider
-    __all__ = ["Provider", "ProviderConfig", "AnthropicProvider", "OpenAIProvider"]
+    __all__ = ["Provider", "ProviderConfig", "AnthropicProvider", "OllamaProvider", "OpenAIProvider"]
 except ImportError:
-    __all__ = ["Provider", "ProviderConfig", "AnthropicProvider"]
+    __all__ = ["Provider", "ProviderConfig", "AnthropicProvider", "OllamaProvider"]
