@@ -26,6 +26,11 @@ This document describes the Python implementation of an AI coding agent inspired
    - `ReadTool` - Read files with line ranges
    - `EditTool` - Edit files with exact string replacement
    - `GrepTool` - Search code with grep/ripgrep
+   - `WriteTool` - Create new files
+   - `GlobTool` - File pattern matching
+   - `LsTool` - Directory listing
+   - `WebFetchTool` - HTTP requests
+   - `GitTool` - Version control operations
 
 4. **Provider Integration** (`src/pycode/providers/`)
    - `Provider` base class with streaming support
@@ -177,10 +182,14 @@ pycode models
    - Agent customization
 
 5. **Additional Tools**
-   - Write tool (create new files)
-   - Glob tool (file pattern matching)
-   - LSP integration
-   - Git tools
+   - ✅ Write tool (create new files) - IMPLEMENTED
+   - ✅ Glob tool (file pattern matching) - IMPLEMENTED
+   - ✅ Ls tool (directory listing) - IMPLEMENTED
+   - ✅ WebFetch tool (HTTP requests) - IMPLEMENTED
+   - ✅ Git tool (version control) - IMPLEMENTED
+   - ❌ LSP integration
+   - ❌ MultiEdit tool
+   - ❌ Advanced search tools
 
 6. **Context Management**
    - Message history building
@@ -199,12 +208,12 @@ pycode/
 ├── src/pycode/
 │   ├── core/          # ~200 lines
 │   ├── agents/        # ~150 lines
-│   ├── tools/         # ~400 lines
+│   ├── tools/         # ~1,000 lines (9 tools: bash, read, edit, grep, write, glob, ls, webfetch, git)
 │   ├── providers/     # ~250 lines
 │   ├── storage/       # ~80 lines
 │   └── cli/           # ~120 lines
-├── examples/          # ~150 lines
-└── Total: ~1,350 lines of Python
+├── examples/          # ~250 lines (3 demos)
+└── Total: ~2,050 lines of Python
 ```
 
 ## Example: How It Works

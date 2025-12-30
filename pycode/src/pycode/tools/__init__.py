@@ -5,6 +5,11 @@ from .bash import BashTool
 from .read import ReadTool
 from .edit import EditTool
 from .grep import GrepTool
+from .write import WriteTool
+from .glob import GlobTool
+from .ls import LsTool
+from .webfetch import WebFetchTool
+from .git import GitTool
 
 __all__ = [
     "Tool",
@@ -15,4 +20,9 @@ __all__ = [
     "ReadTool",
     "EditTool",
     "GrepTool",
+    "WriteTool",
+    "GlobTool",
+    "LsTool",
+    "WebFetchTool",
+    "GitTool",
 ]
